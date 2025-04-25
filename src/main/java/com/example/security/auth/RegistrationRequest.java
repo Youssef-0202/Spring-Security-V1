@@ -44,7 +44,6 @@ public class    RegistrationRequest {
     private String clientSubscriptionType;
 
 
-
     private boolean isAdmin;
     private boolean  isClient;
 
