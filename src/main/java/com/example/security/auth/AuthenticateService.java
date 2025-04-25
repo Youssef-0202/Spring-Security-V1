@@ -2,6 +2,9 @@ package com.example.security.auth;
 
 import com.example.security.email.EmailService;
 import com.example.security.email.EmailTemplateName;
+import com.example.security.entity.Admin;
+import com.example.security.entity.Client;
+import com.example.security.role.Role;
 import com.example.security.role.RoleRepository;
 import com.example.security.security.JwtService;
 import com.example.security.user.Token;
@@ -40,22 +43,48 @@ public class AuthenticateService {
 
 
     public ResponseEntity<?> register(RegistrationRequest request) throws MessagingException {
-        var userRoles = roleRepository.findByName("USER")
-                .orElseThrow(()-> new IllegalStateException("ROLE USER was not initialized"));
+        request.validateRoleSpecificFields();
 
-        User user = User.builder()
-                .email(request.getEmail())
-                .firstname(request.getFirstname())
-                .lastname(request.getLastname())
-                .roles(List.of(userRoles))
-                .password(passwordEncoder.encode(request.getPassword()))
-                .accountLocked(false)
-                .enabled(false)
-                .build();
-        userRepository.save(user);
-        emailService.sendValidationEmail(user);
+
+        if (request.isAdmin()) {
+            Admin admin = Admin.builder()
+                    .firstname(request.getFirstname())
+                    .lastname(request.getLastname())
+                    .email(request.getEmail())
+                    .password(passwordEncoder.encode(request.getPassword()))
+                    .accountLocked(false)
+                    .enabled(false)
+                    .adminDepartment(request.getAdminDepartment())
+                    .adminSecurityLevel(request.getAdminSecurityLevel())
+                    .build();
+
+            Role adminRole = roleRepository.findByName("ADMIN")
+                    .orElseThrow(() -> new IllegalStateException("ADMIN role not found"));
+            admin.setRoles(List.of(adminRole));
+            userRepository.save(admin);
+            emailService.sendValidationEmail(admin);
+        } else {
+            Client client = Client.builder()
+                    .firstname(request.getFirstname())
+                    .lastname(request.getLastname())
+                    .email(request.getEmail())
+                    .password(passwordEncoder.encode(request.getPassword()))
+                    .accountLocked(false)
+                    .enabled(false)
+                    .clientCompany(request.getClientCompany())
+                    .clientSubscriptionType(request.getClientSubscriptionType())
+                    .build();
+
+            Role clientRole = roleRepository.findByName("CLIENT")
+                    .orElseThrow(() -> new IllegalStateException("CLIENT role not found"));
+            client.setRoles(List.of(clientRole));
+            userRepository.save(client);
+            emailService.sendValidationEmail(client);
+        }
+
         Map<String,String> responseMessage = new HashMap<>();
-        responseMessage.put("message","Registration successful with role user ! ");
+        String role = request.isAdmin() ? "ADMIN " : "CLIENT";
+        responseMessage.put("message", STR."Registration successful with role :  \{role} ! ");
         return ResponseEntity.accepted().body(responseMessage);
     }
 
@@ -79,7 +108,10 @@ public class AuthenticateService {
         var user = ((User) auth.getPrincipal() );
         claims.put("fullName",user.getFullName());
         var jwtToken = jwtService.generateToken(claims,user);
-        return AuthenticationResponse.builder().token(jwtToken).build();
+        var userRole = roleRepository.findByName(user.getRoles().get(0).getName()).get();
+        // TODO : encode userRole into jwtToken
+        // TODO : encode admin/client info in token (now you just sent email-firstname-lastname )
+        return AuthenticationResponse.builder().role(userRole.getName()).token(jwtToken).build();
     }
 
    // @Transactional

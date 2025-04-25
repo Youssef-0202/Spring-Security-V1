@@ -15,7 +15,7 @@ server:
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/security_demo_db_v_1?createDatabaseIfNotExist=true
+    url: jdbc:postgresql://localhost:5432/security_demo_db_v_101
     username: Youssef
     password: YOUSSEF02
     driver-class-name: org.postgresql.Driver
